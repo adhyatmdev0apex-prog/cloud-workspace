@@ -3,60 +3,56 @@
 set -eu
 
 # ============================================================
-# Cloud Workspace
+# CLOUD WORKSPACE
 # ============================================================
-
-PROJECT="/home/coder/project"
-CONFIG_DIR="/home/coder/.config/code-server"
-CONFIG_FILE="${CONFIG_DIR}/config.yaml"
-
-PORT="${PORT:-10000}"
 
 REPO_URL="${REPO_URL:-https://github.com/adhyatmdev0apex-prog/cloud-workspace.git}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 
+REPO_DIR="/home/coder/repo"
+PROJECT_DIR="${REPO_DIR}/Project"
+
+PORT="${PORT:-10000}"
+
+CONFIG_DIR="/home/coder/.config/code-server"
+CONFIG_FILE="${CONFIG_DIR}/config.yaml"
+
 echo ""
 echo "============================================================"
-echo "        CLOUD WORKSPACE STARTUP"
+echo "                 CLOUD WORKSPACE"
 echo "============================================================"
-echo "PORT        : ${PORT}"
-echo "PROJECT     : ${PROJECT}"
-echo "REPOSITORY  : ${REPO_URL}"
-echo "BRANCH      : ${REPO_BRANCH}"
+echo "Repository : ${REPO_URL}"
+echo "Branch     : ${REPO_BRANCH}"
+echo "Repo root  : ${REPO_DIR}"
+echo "Workspace  : ${PROJECT_DIR}"
+echo "PORT       : ${PORT}"
 echo "============================================================"
 echo ""
 
-# ------------------------------------------------------------
-# Directories
-# ------------------------------------------------------------
+# ============================================================
+# 1. Prepare directories
+# ============================================================
 
-mkdir -p "$PROJECT"
+mkdir -p "$REPO_DIR"
 mkdir -p "$CONFIG_DIR"
 
-# ------------------------------------------------------------
-# Git configuration
-# ------------------------------------------------------------
+# ============================================================
+# 2. Clone repository
+# ============================================================
 
-git config --global init.defaultBranch main
-git config --global pull.rebase false
+if [ ! -d "${REPO_DIR}/.git" ]; then
 
-# ------------------------------------------------------------
-# Clone repository if project is empty
-# ------------------------------------------------------------
+    echo "[GIT] No repository found."
+    echo "[GIT] Cloning..."
 
-if [ ! -d "${PROJECT}/.git" ]; then
-
-    echo "[GIT] Repository not found locally."
-    echo "[GIT] Cloning ${REPO_URL}..."
-
-    # Make sure the directory is empty.
-    find "$PROJECT" -mindepth 1 -maxdepth 1 -exec rm -rf {} \;
+    # Keep the repo directory clean.
+    find "$REPO_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} \;
 
     git clone \
         --branch "$REPO_BRANCH" \
         --single-branch \
         "$REPO_URL" \
-        "$PROJECT"
+        "$REPO_DIR"
 
     echo "[GIT] Clone complete."
 
@@ -64,130 +60,141 @@ else
 
     echo "[GIT] Existing repository detected."
 
-    cd "$PROJECT"
+    cd "$REPO_DIR"
 
-    echo "[GIT] Fetching origin..."
+    echo "[GIT] Fetching ${REPO_BRANCH}..."
 
-    git fetch origin "$REPO_BRANCH"
+    git fetch origin "$REPO_BRANCH" || true
 
-    echo "[GIT] Repository already exists."
-    echo "[GIT] Local work will NOT be automatically destroyed."
+    echo "[GIT] Keeping existing working tree."
+    echo "[GIT] Local changes will NOT be destroyed."
 
 fi
 
-# ------------------------------------------------------------
-# Make sure project ownership is correct
-# ------------------------------------------------------------
+# ============================================================
+# 3. Verify Project directory
+# ============================================================
 
-if command -v sudo >/dev/null 2>&1; then
-    sudo chown -R coder:coder "$PROJECT" 2>/dev/null || true
+if [ ! -d "$PROJECT_DIR" ]; then
+
+    echo ""
+    echo "[PROJECT] ERROR:"
+    echo "[PROJECT] The repository does not contain:"
+    echo ""
+    echo "          ${PROJECT_DIR}"
+    echo ""
+    echo "[PROJECT] Creating it so code-server can start."
+    echo ""
+
+    mkdir -p "$PROJECT_DIR"
+
+    touch "${PROJECT_DIR}/.gitkeep"
+
 fi
 
-# ------------------------------------------------------------
-# code-server configuration
-# ------------------------------------------------------------
+# ============================================================
+# 4. Permissions
+# ============================================================
 
-echo "[CODE-SERVER] Preparing configuration..."
+chown -R coder:coder "$REPO_DIR" 2>/dev/null || true
+
+# ============================================================
+# 5. code-server configuration
+# ============================================================
+
+echo "[CODE-SERVER] Creating configuration..."
 
 mkdir -p "$CONFIG_DIR"
 
-# PASSWORD must be supplied through Render Environment Variables.
-#
-# We deliberately do NOT place the password inside the Git repo.
-#
-# For simple passwords this creates valid YAML.
-#
-# If PASSWORD is not supplied, code-server will use its existing
-# generated configuration/password behavior.
-#
-
-if [ -n "${PASSWORD:-}" ]; then
-
-    # Escape backslashes and double quotes for YAML.
-    SAFE_PASSWORD=$(printf '%s' "$PASSWORD" | \
-        sed 's/\\/\\\\/g; s/"/\\"/g')
-
-    cat > "$CONFIG_FILE" <<EOF
+cat > "$CONFIG_FILE" <<EOF
 bind-addr: 0.0.0.0:${PORT}
 auth: password
-password: "${SAFE_PASSWORD}"
 cert: false
 disable-telemetry: true
 disable-update-check: true
 reconnection-grace-time: 10800
 EOF
 
-else
+# Password comes ONLY from Render.
+if [ -n "${PASSWORD:-}" ]; then
 
-    cat > "$CONFIG_FILE" <<EOF
-bind-addr: 0.0.0.0:${PORT}
-auth: password
-cert: false
-disable-telemetry: true
-disable-update-check: true
-reconnection-grace-time: 10800
+    SAFE_PASSWORD=$(printf '%s' "$PASSWORD" | \
+        sed 's/\\/\\\\/g; s/"/\\"/g')
+
+    cat >> "$CONFIG_FILE" <<EOF
+password: "${SAFE_PASSWORD}"
 EOF
 
 fi
 
 chmod 600 "$CONFIG_FILE"
 
-echo "[CODE-SERVER] Configuration ready."
-
-# ------------------------------------------------------------
-# Diagnostics
-# ------------------------------------------------------------
+# ============================================================
+# 6. Diagnostics
+# ============================================================
 
 echo ""
-echo "---------------- SYSTEM ----------------"
+echo "================ ENVIRONMENT ================="
 
 echo "User:"
 id
 
 echo ""
+echo "PORT:"
+echo "$PORT"
+
+echo ""
+echo "CPU:"
+nproc 2>/dev/null || true
+
+echo ""
+echo "Memory:"
+free -h 2>/dev/null || true
+
+echo ""
 echo "Node:"
-node --version || true
+node --version 2>/dev/null || true
 
 echo ""
 echo "npm:"
-npm --version || true
+npm --version 2>/dev/null || true
 
 echo ""
 echo "Python:"
-python3 --version || true
-
-echo ""
-echo "pip:"
-python3 -m pip --version || true
+python3 --version 2>/dev/null || true
 
 echo ""
 echo "Git:"
-git --version || true
+git --version 2>/dev/null || true
 
 echo ""
 echo "code-server:"
-code-server --version || true
+code-server --version 2>/dev/null || true
 
-echo "-----------------------------------------"
-echo ""
-
-echo "[HEALTH] Project directory:"
-ls -la "$PROJECT"
+echo "================================================"
 
 echo ""
+echo "[GIT] Repository:"
+ls -la "$REPO_DIR"
 
-# ------------------------------------------------------------
-# Launch official code-server entrypoint
-#
-# The official image's entrypoint handles the container runtime
-# and launches code-server.
-#
-# We explicitly override bind address/port and workspace.
-# ------------------------------------------------------------
+echo ""
+echo "[PROJECT] Workspace:"
+ls -la "$PROJECT_DIR"
 
-echo "[CODE-SERVER] Starting..."
-echo "[CODE-SERVER] Listening on 0.0.0.0:${PORT}"
-echo "[CODE-SERVER] Workspace: ${PROJECT}"
+echo ""
+
+# ============================================================
+# 7. Launch code-server
+# ============================================================
+
+echo "============================================================"
+echo "[CODE-SERVER] STARTING"
+echo "============================================================"
+echo ""
+echo "Bind address : 0.0.0.0:${PORT}"
+echo "Workspace    : ${PROJECT_DIR}"
+echo ""
+echo "============================================================"
 echo ""
 
 exec /usr/bin/entrypoint.sh \
@@ -196,4 +203,5 @@ exec /usr/bin/entrypoint.sh \
     --disable-telemetry \
     --disable-update-check \
     --reconnection-grace-time 10800 \
-    "$PROJECT"
+    --log debug \
+    "$PROJECT_DIR"
