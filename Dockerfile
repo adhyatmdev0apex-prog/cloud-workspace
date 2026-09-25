@@ -3,8 +3,9 @@ FROM codercom/code-server:latest
 USER root
 
 # ------------------------------------------------------------
-# Base development tools
+# Development environment
 # ------------------------------------------------------------
+
 RUN apt-get update && \
     apt-get install -y \
         git \
@@ -23,20 +24,22 @@ RUN apt-get update && \
         nano \
         vim-tiny \
         openssh-client \
+        tmux \
     && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------
-# Workspace
+# Repository workspace
 # ------------------------------------------------------------
-RUN mkdir -p /home/coder/project && \
+
+RUN mkdir -p /home/coder/repo && \
     mkdir -p /home/coder/.config/code-server && \
-    mkdir -p /home/coder/entrypoint.d && \
     chown -R coder:coder /home/coder
 
 # ------------------------------------------------------------
 # Startup script
 # ------------------------------------------------------------
+
 COPY start.sh /start.sh
 
 RUN chmod +x /start.sh && \
@@ -44,15 +47,8 @@ RUN chmod +x /start.sh && \
 
 USER coder
 
-WORKDIR /home/coder/project
+WORKDIR /home/coder/repo
 
-# Render normally provides PORT.
-# 10000 is the fallback.
 EXPOSE 10000
 
-# Our wrapper handles:
-#   - repository checkout
-#   - code-server configuration
-#   - Render PORT
-#   - launching the official code-server entrypoint
 ENTRYPOINT ["/start.sh"]
