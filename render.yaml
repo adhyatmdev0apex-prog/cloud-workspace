@@ -2,7 +2,6 @@ services:
   - type: web
     name: cloud-workspace-vscode
     runtime: docker
-
     plan: free
 
     dockerfilePath: ./Dockerfile
