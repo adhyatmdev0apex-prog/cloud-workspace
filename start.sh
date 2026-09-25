@@ -126,7 +126,6 @@ if [ -n "${PASSWORD:-}" ]; then
     exec code-server \
         --bind-addr "0.0.0.0:${PORT}" \
         --auth password \
-        --password "$PASSWORD" \
         --disable-telemetry \
         --disable-update-check \
         --reconnection-grace-time 10800 \
