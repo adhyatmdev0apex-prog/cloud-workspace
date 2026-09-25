@@ -2,10 +2,6 @@ FROM codercom/code-server:latest
 
 USER root
 
-# ------------------------------------------------------------
-# Development environment
-# ------------------------------------------------------------
-
 RUN apt-get update && \
     apt-get install -y \
         git \
@@ -28,17 +24,8 @@ RUN apt-get update && \
     && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
-# ------------------------------------------------------------
-# Repository workspace
-# ------------------------------------------------------------
-
 RUN mkdir -p /home/coder/repo && \
-    mkdir -p /home/coder/.config/code-server && \
-    chown -R coder:coder /home/coder
-
-# ------------------------------------------------------------
-# Startup script
-# ------------------------------------------------------------
+    chown -R coder:coder /home/coder/repo
 
 COPY start.sh /start.sh
 
