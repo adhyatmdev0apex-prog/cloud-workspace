@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: cloud-workspace-vscode
+    runtime: docker
+
+    plan: free
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    healthCheckPath: /healthz
+
+    envVars:
+      - key: REPO_URL
+        value: https://github.com/adhyatmdev0apex-prog/cloud-workspace.git
+
+      - key: REPO_BRANCH
+        value: main
+
+      - key: PASSWORD
+        sync: false
